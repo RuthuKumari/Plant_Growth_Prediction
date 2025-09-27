@@ -1,9 +1,7 @@
 # %%
-
 import streamlit as st
 import pandas as pd
 import pickle
-import numpy as np
 
 # -------------------------------
 # Page Configuration
@@ -22,36 +20,38 @@ except FileNotFoundError:
     st.stop()
 
 # -------------------------------
-# Sidebar Inputs (Customize features here)
+# Sidebar Inputs
 # -------------------------------
 st.sidebar.header("Enter Plant Details")
 
-# Example features — change these to match your dataset
-sunlight = st.sidebar.slider("Sunlight (hours/day)", min_value=1, max_value=12, value=6)
-water = st.sidebar.slider("Water (liters/week)", min_value=1, max_value=20, value=10)
-soil_ph = st.sidebar.slider("Soil pH", min_value=3.0, max_value=9.0, value=6.5, step=0.1)
-fertilizer = st.sidebar.slider("Fertilizer Amount (kg/acre)", min_value=0, max_value=100, value=30)
-temperature = st.sidebar.slider("Temperature (°C)", min_value=10, max_value=40, value=25)
+# Numerical inputs
+sunlight = st.sidebar.slider("Sunlight Hours (per day)", min_value=1.0, max_value=12.0, value=6.0, step=0.1)
+temperature = st.sidebar.slider("Temperature (°C)", min_value=10.0, max_value=45.0, value=25.0, step=0.1)
+humidity = st.sidebar.slider("Humidity (%)", min_value=20.0, max_value=100.0, value=60.0, step=0.1)
 
-soil_type = st.sidebar.selectbox("Soil Type", options=["Sandy", "Clay", "Loamy"])
-fertilizer_type = st.sidebar.selectbox("Fertilizer Type", options=["Organic", "Chemical", "Mixed"])
+# Categorical inputs
+soil_type = st.sidebar.selectbox("Soil Type", options=["loam", "sandy", "clay"])
+water_frequency = st.sidebar.selectbox("Water Frequency", options=["daily", "weekly", "bi-weekly"])
+fertilizer_type = st.sidebar.selectbox("Fertilizer Type", options=["organic", "chemical", "none"])
 
 # -------------------------------
-# Preprocessing function
+# Preprocessing (one-hot encoding to match training)
 # -------------------------------
-def preprocess_input(sunlight, water, soil_ph, fertilizer, temperature, soil_type, fertilizer_type):
+def preprocess_input(sunlight, temperature, humidity, soil_type, water_frequency, fertilizer_type):
     data = {
-        "Sunlight": sunlight,
-        "Water": water,
-        "Soil_pH": soil_ph,
-        "Fertilizer": fertilizer,
+        "Sunlight_Hours": sunlight,
         "Temperature": temperature,
-        "SoilType_Sandy": 1 if soil_type == "Sandy" else 0,
-        "SoilType_Clay": 1 if soil_type == "Clay" else 0,
-        "SoilType_Loamy": 1 if soil_type == "Loamy" else 0,
-        "FertilizerType_Organic": 1 if fertilizer_type == "Organic" else 0,
-        "FertilizerType_Chemical": 1 if fertilizer_type == "Chemical" else 0,
-        "FertilizerType_Mixed": 1 if fertilizer_type == "Mixed" else 0,
+        "Humidity": humidity,
+        # One-hot encoded categories (must match training names!)
+        "Soil_Type_clay": 1 if soil_type == "clay" else 0,
+        "Soil_Type_loam": 1 if soil_type == "loam" else 0,
+        "Soil_Type_sandy": 1 if soil_type == "sandy" else 0,
+        "Water_Frequency_daily": 1 if water_frequency == "daily" else 0,
+        "Water_Frequency_weekly": 1 if water_frequency == "weekly" else 0,
+        "Water_Frequency_bi-weekly": 1 if water_frequency == "bi-weekly" else 0,
+        "Fertilizer_Type_organic": 1 if fertilizer_type == "organic" else 0,
+        "Fertilizer_Type_chemical": 1 if fertilizer_type == "chemical" else 0,
+        "Fertilizer_Type_none": 1 if fertilizer_type == "none" else 0,
     }
     return pd.DataFrame([data])
 
@@ -59,14 +59,15 @@ def preprocess_input(sunlight, water, soil_ph, fertilizer, temperature, soil_typ
 # Prediction Button
 # -------------------------------
 if st.sidebar.button("Predict"):
-    input_df = preprocess_input(sunlight, water, soil_ph, fertilizer, temperature, soil_type, fertilizer_type)
+    input_df = preprocess_input(sunlight, temperature, humidity, soil_type, water_frequency, fertilizer_type)
 
     try:
         prediction = logreg.predict(input_df)[0]
-
         st.subheader("🌿 Prediction Result")
-        st.write(f"Predicted Plant Growth Category: **{prediction}**")
-
+        if prediction == 1:
+            st.success("The plant is predicted to **reach growth milestone** ✅")
+        else:
+            st.warning("The plant is predicted to **not reach growth milestone** ❌")
     except Exception as e:
         st.error(f"Error making prediction: {str(e)}")
 
@@ -76,8 +77,8 @@ if st.sidebar.button("Predict"):
 st.write("""
 ### 📌 Instructions
 1. Enter plant details in the sidebar.
-2. Click **Predict** to get the growth category.
-3. Adjust inputs to compare different scenarios.
+2. Click **Predict** to get the growth milestone prediction.
+3. Adjust inputs to compare different conditions.
 """)
 
 
