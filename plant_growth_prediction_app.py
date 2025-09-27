@@ -20,6 +20,16 @@ except FileNotFoundError:
     st.stop()
 
 # -------------------------------
+# Load training columns
+# -------------------------------
+try:
+    with open("training_columns.pkl", "rb") as f:
+        training_columns = pickle.load(f)
+except FileNotFoundError:
+    st.error("File 'training_columns.pkl' not found. Please save the training columns during training.")
+    st.stop()
+
+# -------------------------------
 # Sidebar Inputs
 # -------------------------------
 st.sidebar.header("Enter Plant Details")
@@ -35,25 +45,32 @@ water_frequency = st.sidebar.selectbox("Water Frequency", options=["daily", "wee
 fertilizer_type = st.sidebar.selectbox("Fertilizer Type", options=["organic", "chemical", "none"])
 
 # -------------------------------
-# Preprocessing (one-hot encoding to match training)
+# Preprocessing Function
 # -------------------------------
 def preprocess_input(sunlight, temperature, humidity, soil_type, water_frequency, fertilizer_type):
-    data = {
-        "Sunlight_Hours": sunlight,
-        "Temperature": temperature,
-        "Humidity": humidity,
-        # One-hot encoded categories (must match training names!)
-        "Soil_Type_clay": 1 if soil_type == "clay" else 0,
-        "Soil_Type_loam": 1 if soil_type == "loam" else 0,
-        "Soil_Type_sandy": 1 if soil_type == "sandy" else 0,
-        "Water_Frequency_daily": 1 if water_frequency == "daily" else 0,
-        "Water_Frequency_weekly": 1 if water_frequency == "weekly" else 0,
-        "Water_Frequency_bi-weekly": 1 if water_frequency == "bi-weekly" else 0,
-        "Fertilizer_Type_organic": 1 if fertilizer_type == "organic" else 0,
-        "Fertilizer_Type_chemical": 1 if fertilizer_type == "chemical" else 0,
-        "Fertilizer_Type_none": 1 if fertilizer_type == "none" else 0,
+    # Create initial input DataFrame
+    input_dict = {
+        "Sunlight_Hours": [sunlight],
+        "Temperature": [temperature],
+        "Humidity": [humidity],
+        "Soil_Type": [soil_type],
+        "Water_Frequency": [water_frequency],
+        "Fertilizer_Type": [fertilizer_type]
     }
-    return pd.DataFrame([data])
+    df = pd.DataFrame(input_dict)
+
+    # One-hot encode categorical columns
+    df = pd.get_dummies(df, columns=["Soil_Type", "Water_Frequency", "Fertilizer_Type"])
+
+    # Add missing columns from training with 0
+    for col in training_columns:
+        if col not in df.columns:
+            df[col] = 0
+
+    # Reorder columns to match training
+    df = df[training_columns]
+
+    return df
 
 # -------------------------------
 # Prediction Button
@@ -80,5 +97,3 @@ st.write("""
 2. Click **Predict** to get the growth milestone prediction.
 3. Adjust inputs to compare different conditions.
 """)
-
-
